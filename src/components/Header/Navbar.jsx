@@ -4,7 +4,10 @@ import { useAuthContext } from '../../context/AuthContext';
 import { Space } from 'antd';
 
 const Navbar = () => {
-  const { isAuth, handleLogout } = useAuthContext();
+  const { state, handleLogout } = useAuthContext();
+  const { isAuth, user} = state;
+  console.log(isAuth, user)
+
   const [isOpen, setIsOpen] = useState(false);
 
   return (

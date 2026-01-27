@@ -1,17 +1,19 @@
-import React, { createContext, useContext, useEffect, useReducer, useState } from 'react'
+import React, { createContext, useContext, useEffect, useReducer, useState } from "react"
+import axios from "axios"
 
 const AuthContext = createContext()
 
-const initialState = { isAuth: null, user: {} }
+const initialState = {
+  isAuth: false,
+  user: null,
+}
 
-const reducer = (state, { action, payload }) => {
-  switch (action) {
+const reducer = (state, { type, payload }) => {
+  switch (type) {
     case "SET_LOGGED_IN":
-      return { ...state, isAuth: true, user: payload.user }
-
+      return { isAuth: true, user: payload }
     case "SET_LOGGED_OUT":
       return initialState
-
     default:
       return state
   }
@@ -22,31 +24,55 @@ const AuthContextProvider = ({ children }) => {
   const [isAppLoading, setIsAppLoading] = useState(true)
 
   useEffect(() => {
-    const loggedUser = localStorage.getItem("loggedInUser")
-    if (loggedUser) {
-      dispatch({
-        action: "SET_LOGGED_IN",
-        payload: { user: JSON.parse(loggedUser) },
-      })
+    const token = localStorage.getItem("Token")
+    if (!token) {
+      setInterval(() => {
+        setIsAppLoading(false)
+      }, 2000)
+      return
     }
 
-    setTimeout(() => {
-      setIsAppLoading(false)
-    }, 1000)
+    const API = import.meta.env.VITE_API_URL
+
+    axios
+      .get(`${API}/api/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        dispatch({ type: "SET_LOGGED_IN", payload: res.data.user })
+      })
+      .catch(() => {
+        localStorage.removeItem("Token")
+        dispatch({ type: "SET_LOGGED_OUT" })
+      })
+      .finally(() => setIsAppLoading(false))
   }, [])
 
+  const handleLogin = (userData, token) => {
+    localStorage.setItem("Token", token)
+    dispatch({ type: "SET_LOGGED_IN", payload: userData })
+  }
+
   const handleLogout = () => {
-    localStorage.removeItem("loggedInUser") 
-    dispatch({ action: "SET_LOGGED_OUT" }) 
+    localStorage.removeItem("Token")
+    dispatch({ type: "SET_LOGGED_OUT" })
   }
 
   return (
-    <AuthContext.Provider value={{ state, dispatch, isAppLoading, handleLogout }}>
+    <AuthContext.Provider
+      value={{
+        state,          
+        dispatch,
+        isAppLoading,          
+        handleLogin,   
+        handleLogout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
 
-export default AuthContextProvider
-
 export const useAuthContext = () => useContext(AuthContext)
+
+export default AuthContextProvider
